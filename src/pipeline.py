@@ -25,6 +25,7 @@ logger = get_logger(__name__)
 import src.parsers.pdf_parser       # noqa: F401
 import src.parsers.markdown_parser  # noqa: F401
 import src.parsers.text_parser      # noqa: F401
+import src.parsers.video_parser     # noqa: F401
 import src.chunkers.recursive_chunker  # noqa: F401
 import src.embedders.huggingface_embedder  # noqa: F401
 import src.embedders.openai_embedder       # noqa: F401
@@ -121,12 +122,14 @@ class RAGPipeline:
             return None
 
         if parser_name not in self._parser_cache:
-            # Pass VLM/OCR config to PDF parser
+            # Pass VLM/OCR/ASR config to parsers that need it
             kwargs = {}
-            if parser_name == "pdf":
+            if parser_name in ("pdf", "video"):
                 llm_cfg = self._get_llm_config()
                 kwargs["vlm_api_key"] = llm_cfg.get("api_key", "")
                 kwargs["vlm_api_base"] = llm_cfg.get("api_base", "https://api.siliconflow.cn/v1")
+                kwargs["asr_api_key"] = llm_cfg.get("api_key", "")
+                kwargs["asr_api_base"] = llm_cfg.get("api_base", "https://api.siliconflow.cn/v1")
             self._parser_cache[parser_name] = ModuleRegistry.parsers.build(
                 parser_name, **kwargs
             )
