@@ -1,6 +1,6 @@
 """RAG Knowledge Base — Streamlit Web UI."""
 
-import json, os, sys
+import json, os, sys, uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -51,23 +51,35 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # ================================================================
-# Chat History
+# Multi-Conversation Chat History
 # ================================================================
 HISTORY_FILE = _PROJECT_ROOT / "data" / "chat_history.json"
 
-def load_history() -> list:
+def load_conversations() -> dict:
+    """Load all conversations. Returns {conv_id: {name, messages, created_at}}."""
     if HISTORY_FILE.exists():
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
-    return []
+    return {}
 
-def save_history(messages: list):
+def save_conversations(convs: dict):
     HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(messages, f, ensure_ascii=False, default=str)
+        json.dump(convs, f, ensure_ascii=False, default=str)
+
+def new_conversation(name: str = "") -> tuple:
+    """Create a new conversation. Returns (conv_id, conv_dict)."""
+    cid = uuid.uuid4().hex[:8]
+    now = datetime.now().strftime("%m/%d %H:%M")
+    conv = {
+        "name": name or f"对话 {now}",
+        "created_at": now,
+        "messages": [],
+    }
+    return cid, conv
 
 # ================================================================
 # Pipeline
@@ -98,10 +110,23 @@ def get_pipeline():
 def main():
     if "pipeline" not in st.session_state:
         st.session_state.pipeline = get_pipeline()
-    if "messages" not in st.session_state:
-        st.session_state.messages = load_history()
+
+    # --- Load conversations ---
+    if "conversations" not in st.session_state:
+        st.session_state.conversations = load_conversations()
+    if "current_conv" not in st.session_state:
+        # Auto-create first conversation if none exist
+        convs = st.session_state.conversations
+        if not convs:
+            cid, conv = new_conversation()
+            convs[cid] = conv
+            save_conversations(convs)
+        st.session_state.current_conv = list(convs.keys())[-1]
 
     pipeline = st.session_state.pipeline
+    convs = st.session_state.conversations
+    cid = st.session_state.current_conv
+    msgs = convs[cid]["messages"]
 
     # ============================================================
     # TOP BAR
@@ -139,56 +164,74 @@ def main():
             if st.button("🗑 清空知识库", use_container_width=True):
                 pipeline.clear_index()
                 st.session_state.pipeline = get_pipeline()
-                st.success("知识库已清空（对话记录保留）")
+                st.success("知识库已清空")
                 st.rerun()
 
     # ============================================================
-    # SIDEBAR: Settings only
+    # SIDEBAR: Settings
     # ============================================================
     with st.sidebar:
         st.markdown("### ⚙️ 设置")
         top_k = st.slider("搜索范围", 1, 20, 5, help="检索片段数量")
-        if st.button("🆕 新对话", use_container_width=True):
-            st.session_state.messages = []
-            save_history([])
-            st.rerun()
 
     # ============================================================
-    # MAIN LAYOUT: History panel (left) + Chat (right)
+    # MAIN LAYOUT: Conversation list (left) + Chat (right)
     # ============================================================
     left, right = st.columns([1, 3])
 
-    # --- LEFT: Chat History ---
+    # --- LEFT: Conversation List ---
     with left:
-        st.markdown('<div class="panel-title">💬 对话记录</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">💬 对话列表</div>', unsafe_allow_html=True)
 
-        msgs = st.session_state.messages
-        # Build Q-A pairs
-        pairs = []
-        i = 0
-        while i < len(msgs):
-            if msgs[i]["role"] == "user":
-                q = msgs[i]["content"]
-                a = msgs[i + 1]["content"] if i + 1 < len(msgs) and msgs[i + 1]["role"] == "assistant" else ""
-                t = msgs[i].get("time", "")
-                pairs.append({"q": q, "a": a, "t": t, "idx": i})
-                i += 2
-            else:
-                i += 1
+        # New conversation button
+        new_name = st.text_input("", placeholder="新对话名称（可选）", label_visibility="collapsed")
+        col_a, col_b = st.columns([2, 1])
+        if col_a.button("➕ 新建对话", use_container_width=True):
+            nid, nconv = new_conversation(new_name.strip() if new_name.strip() else "")
+            convs[nid] = nconv
+            save_conversations(convs)
+            st.session_state.current_conv = nid
+            st.rerun()
 
-        if not pairs:
-            st.caption("暂无对话")
+        st.divider()
 
-        for p in reversed(pairs[-30:]):
-            q_short = p["q"][:28] + ("..." if len(p["q"]) > 28 else "")
-            with st.expander(f"{q_short}", expanded=False):
-                st.caption(f"**问：** {p['q']}")
-                st.caption(f"**答：** {p['a'][:200]}")
-                st.caption(f"_{p['t']}_")
+        # List conversations
+        sorted_convs = sorted(convs.items(), key=lambda x: x[1].get("created_at", ""), reverse=True)
+
+        for conv_id, conv_data in sorted_convs:
+            name = conv_data.get("name", "未命名")
+            msg_count = len(conv_data.get("messages", []))
+            is_active = (conv_id == cid)
+
+            # Active conversation highlighted
+            style = "background: #EEF2FF; border-left: 3px solid #3B82F6;" if is_active else ""
+
+            c_left, c_right = st.columns([4, 1])
+            with c_left:
+                if st.button(
+                    f"{'📌 ' if is_active else ''}{name}",
+                    key=f"conv_{conv_id}",
+                    use_container_width=True,
+                    type="primary" if is_active else "secondary",
+                ):
+                    st.session_state.current_conv = conv_id
+                    st.rerun()
+            with c_right:
+                if len(convs) > 1 and st.button("✕", key=f"del_{conv_id}", help="删除对话"):
+                    del convs[conv_id]
+                    save_conversations(convs)
+                    if cid == conv_id:
+                        st.session_state.current_conv = list(convs.keys())[-1] if convs else ""
+                    st.rerun()
+
+            st.caption(f"   {msg_count} 条消息 · {conv_data.get('created_at', '')}")
 
     # --- RIGHT: Chat area ---
     with right:
-        for msg in st.session_state.messages:
+        # Show current conversation name
+        st.caption(f"当前对话：{convs[cid].get('name', '')}")
+
+        for msg in msgs:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
                 if msg.get("sources"):
@@ -205,8 +248,11 @@ def main():
 
         if question := st.chat_input("输入问题，基于知识库回答..."):
             now = datetime.now().strftime("%H:%M")
-            st.session_state.messages.append({"role": "user", "content": question, "time": now})
-            save_history(st.session_state.messages)
+            msgs.append({"role": "user", "content": question, "time": now})
+            # Auto-name conversation from first question
+            if len(msgs) <= 2 and convs[cid]["name"].startswith("对话 "):
+                convs[cid]["name"] = question[:20] + ("..." if len(question) > 20 else "")
+            save_conversations(convs)
 
             with st.chat_message("user"):
                 st.markdown(question)
@@ -227,12 +273,12 @@ def main():
                                         f'</div>',
                                         unsafe_allow_html=True,
                                     )
-                        st.session_state.messages.append({
+                        msgs.append({
                             "role": "assistant", "content": answer.answer,
                             "sources": answer.sources,
                             "time": datetime.now().strftime("%H:%M"),
                         })
-                        save_history(st.session_state.messages)
+                        save_conversations(convs)
                     except Exception as e:
                         st.error(f"查询失败: {e}")
 
