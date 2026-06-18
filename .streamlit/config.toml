@@ -1,0 +1,10 @@
+[general]
+email = ""
+
+[server]
+headless = true
+enableXsrfProtection = false
+enableCORS = false
+
+[browser]
+gatherUsageStats = false

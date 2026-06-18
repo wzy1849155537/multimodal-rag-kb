@@ -1,0 +1,85 @@
+# =============================================================================
+# Main Configuration: Multi-modal RAG Knowledge Base System
+# =============================================================================
+
+# --- Paths ---
+paths:
+  data_dir: "./data"
+  documents_dir: "${DATA_DIR:-./data/documents}"
+  index_dir: "${INDEX_DIR:-./data/index}"
+  cache_dir: "${CACHE_DIR:-./data/cache}"
+  eval_dir: "${EVAL_DIR:-./data/eval}"
+  log_dir: "${LOG_DIR:-./logs}"
+
+# --- Index ---
+index:
+  collection_name: "rag_kb_default"
+  embedding_dim: 1024  # BGE-M3 default
+  distance_metric: "cosine"
+
+# --- Chunking ---
+chunking:
+  strategy: "recursive"  # fixed | recursive | semantic
+  chunk_size: 512
+  chunk_overlap: 64
+  separators: ["\n\n", "\n", "。", ".", " ", ""]
+
+# --- Retrieval ---
+retrieval:
+  top_k_dense: 20
+  top_k_sparse: 20
+  top_k_fusion: 15
+  top_k_rerank: 5
+  bm25_weight: 0.3  # weight in RRF: 0.0 = dense only, 1.0 = sparse only
+
+# --- Reranking ---
+reranking:
+  enabled: false  # Phase 3
+  model_name: "BAAI/bge-reranker-v2-m3"
+  top_k: 5
+
+# --- Verification ---
+verification:
+  enabled: false  # Phase 3
+  confidence_threshold: 0.4
+  secondary_top_k_multiplier: 2
+
+# --- Query Rewriting ---
+query_rewriting:
+  enabled: false  # Phase 3
+  strategy: "llm"  # noop | llm | hyde
+  max_rewrites: 3
+
+# --- Generation ---
+generation:
+  llm_model: "${LLM_MODEL:-gpt-4o-mini}"
+  llm_temperature: 0.3
+  max_context_tokens: 4096
+  system_prompt_lang: "zh"  # Chinese prompt templates
+
+# --- Incremental ---
+incremental:
+  hash_algorithm: "sha256"
+  hash_store_path: "./data/index/.doc_hash_store.json"
+
+# --- Cache ---
+cache:
+  qa_cache_enabled: false  # Phase 4
+  qa_cache_similarity_threshold: 0.92
+  qa_cache_ttl_hours: 24
+  index_cache_enabled: false
+
+# --- Evaluation ---
+evaluation:
+  metrics: ["context_precision", "context_recall", "faithfulness", "answer_relevancy"]
+  custom_metrics: ["mrr", "hit_at_k"]
+  experiment:
+    chunk_sizes: [256, 512, 1024]
+    top_k_values: [3, 5, 10, 20]
+    rerankers: ["base", "cross-encoder"]
+
+# --- Logging ---
+logging:
+  level: "INFO"
+  rotation: "10 MB"
+  retention: "7 days"

@@ -1,0 +1,82 @@
+# =============================================================================
+# Model Registry: LLM, Embedding, VLM, OCR, Reranker configurations
+# =============================================================================
+
+# --- LLM (OpenAI-compatible API) ---
+llm:
+  default: "siliconflow"
+  providers:
+    siliconflow:
+      api_base: "https://api.siliconflow.cn/v1"
+      api_key: "${SILICONFLOW_API_KEY}"
+      model: "Qwen/Qwen2.5-32B-Instruct"
+    openai:
+      api_base: "${OPENAI_API_BASE:-https://api.openai.com/v1}"
+      api_key: "${OPENAI_API_KEY:-}"
+      model: "${OPENAI_MODEL:-gpt-4o-mini}"
+    qwen:
+      api_base: "${QWEN_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
+      api_key: "${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}"
+      model: "${QWEN_MODEL:-qwen-plus}"
+    deepseek:
+      api_base: "${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}"
+      api_key: "${DEEPSEEK_API_KEY:-}"
+      model: "${DEEPSEEK_MODEL:-deepseek-chat}"
+
+# --- Embedding ---
+embedding:
+  default: "siliconflow"
+  models:
+    siliconflow:
+      provider: "openai"
+      model_name: "BAAI/bge-m3"
+      dimension: 1024
+      api_base: "https://api.siliconflow.cn/v1"
+      api_key: "${SILICONFLOW_API_KEY}"
+    bge-m3:
+      provider: "huggingface"
+      model_name: "BAAI/bge-m3"
+      dimension: 1024
+      device: "${EMBEDDING_DEVICE:-cpu}"
+      normalize: true
+    bge-small:
+      provider: "huggingface"
+      model_name: "BAAI/bge-small-zh-v1.5"
+      dimension: 512
+      device: "${EMBEDDING_DEVICE:-cpu}"
+      normalize: true
+    openai:
+      provider: "openai"
+      model_name: "text-embedding-3-small"
+      dimension: 1536
+
+# --- Reranker ---
+reranker:
+  default: "bge-reranker"
+  models:
+    bge-reranker:
+      provider: "huggingface"
+      model_name: "BAAI/bge-reranker-v2-m3"
+      device: "${RERANKER_DEVICE:-cpu}"
+    none:
+      provider: "passthrough"
+
+# --- VLM (Vision Language Model) ---
+vlm:
+  default: "qwen-vl"
+  models:
+    qwen-vl:
+      provider: "openai-compatible"
+      api_base: "${QWEN_VL_API_BASE:-${QWEN_API_BASE:-}}"
+      api_key: "${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}"
+      model: "qwen-vl-plus"
+
+# --- OCR ---
+ocr:
+  default: "paddle"
+  models:
+    paddle:
+      provider: "paddleocr"
+      lang: "ch"
+      use_angle_cls: true
+      use_gpu: false

@@ -1,0 +1,41 @@
+# =============================================================================
+# Pipeline Configuration: which pluggable modules are active
+# =============================================================================
+
+# --- Parsers ---
+# Active parsers by file extension. Must be registered in ModuleRegistry.
+parsers:
+  ".pdf": "pdf"
+  ".md": "markdown"
+  ".txt": "text"
+  ".png": "image"
+  ".jpg": "image"
+  ".jpeg": "image"
+  ".webp": "image"
+
+# --- Chunker ---
+chunker: "recursive"  # fixed | recursive | semantic
+
+# --- Embedder ---
+embedder: "siliconflow"  # siliconflow | bge-m3 | bge-small | openai
+
+# --- Indexer ---
+indexer: "hybrid"  # dense | hybrid (Phase 2+)
+
+# --- Query Rewriter ---
+rewriter: "noop"  # noop | llm | hyde (Phase 3+)
+
+# --- Router ---
+router: "default"  # default | keyword | llm (Phase 3+)
+
+# --- Retriever ---
+retriever: "multi"  # single | multi (Phase 2+)
+
+# --- Reranker ---
+reranker: "noop"  # noop | cross-encoder | llm (Phase 3+)
+
+# --- Verifier ---
+verifier: "noop"  # noop | confidence (Phase 3+)
+
+# --- Generator ---
+generator: "rag"  # rag
