@@ -6,10 +6,23 @@ import time
 import subprocess
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).parent.absolute()
+
+# Load API key: env var > OPENAI_API_KEY > .env file
 if not os.environ.get("SILICONFLOW_API_KEY"):
     os.environ["SILICONFLOW_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
 
-PROJECT_ROOT = Path(__file__).parent.absolute()
+if not os.environ.get("SILICONFLOW_API_KEY"):
+    env_file = PROJECT_ROOT / ".env"
+    if env_file.exists():
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("SILICONFLOW_API_KEY="):
+                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if val and val != "your-api-key-here":
+                        os.environ["SILICONFLOW_API_KEY"] = val
+                    break
 sys.path.insert(0, str(PROJECT_ROOT))
 
 

@@ -122,12 +122,13 @@ class RAGPipeline:
             return None
 
         if parser_name not in self._parser_cache:
-            # Pass VLM/OCR/ASR config to parsers that need it
+            # Pass API config to parsers that need it
             kwargs = {}
-            if parser_name in ("pdf", "video"):
-                llm_cfg = self._get_llm_config()
+            llm_cfg = self._get_llm_config()
+            if parser_name == "pdf":
                 kwargs["vlm_api_key"] = llm_cfg.get("api_key", "")
                 kwargs["vlm_api_base"] = llm_cfg.get("api_base", "https://api.siliconflow.cn/v1")
+            elif parser_name == "video":
                 kwargs["asr_api_key"] = llm_cfg.get("api_key", "")
                 kwargs["asr_api_base"] = llm_cfg.get("api_base", "https://api.siliconflow.cn/v1")
             self._parser_cache[parser_name] = ModuleRegistry.parsers.build(
