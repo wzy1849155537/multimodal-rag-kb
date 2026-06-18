@@ -51,27 +51,11 @@ class VideoParser(BaseParser):
         self.asr_api_key = asr_api_key
 
     def _find_ffmpeg(self) -> str:
-        """Find ffmpeg binary, checking common install locations."""
-        import glob as gb
-        candidates = [
-            "ffmpeg",
-            "ffmpeg.exe",
-        ]
-        # Check winget install path
-        winget_base = Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
-        for pattern in [
-            "Gyan.FFmpeg_*/ffmpeg-*/bin/ffmpeg.exe",
-        ]:
-            for p in sorted(winget_base.glob(pattern), reverse=True):
-                if p.exists():
-                    candidates.insert(0, str(p))
-        # Check Program Files
-        for base in [Path("C:/Program Files"), Path("C:/Program Files (x86)")]:
-            for p in base.glob("ffmpeg*/bin/ffmpeg.exe"):
-                candidates.insert(0, str(p))
-        for c in candidates:
-            if Path(c).exists() or c == "ffmpeg":
-                return c
+        """Find ffmpeg binary."""
+        # Hardcoded known-good path from winget install
+        ff = Path.home() / "AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe"
+        if ff.exists():
+            return str(ff)
         return "ffmpeg"
 
     def parse(self, file_path: Path) -> RawDocument:
@@ -85,7 +69,9 @@ class VideoParser(BaseParser):
             audio_path = Path(tmpdir) / f"{doc_id}_audio.mp3"
 
             ffmpeg_bin = self._find_ffmpeg()
-            ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+            # Replace only the filename, not the path
+            ff_dir = str(Path(ffmpeg_bin).parent)
+            ffprobe_bin = str(Path(ff_dir) / "ffprobe.exe")
 
             # Extract audio with ffmpeg
             try:
