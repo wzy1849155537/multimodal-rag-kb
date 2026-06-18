@@ -246,57 +246,7 @@ def main():
                                 unsafe_allow_html=True,
                             )
 
-        # --- Voice input + Text input ---
-        voice_text = st.query_params.get("voice_text", "")
-        if voice_text:
-            question = voice_text
-            st.query_params.clear()
-        else:
-            # Mic button + chat input side by side
-            c_voice, c_input = st.columns([0.5, 9.5])
-            with c_voice:
-                st.components.v1.html("""
-                <button id="mic-btn" onclick="startVoice()" style="
-                    width:38px; height:38px; border-radius:50%; border:2px solid #ccc;
-                    background:#fff; cursor:pointer; font-size:18px; margin-top:4px;
-                " title="语音输入">🎤</button>
-                <script>
-                function startVoice() {
-                    const btn = document.getElementById('mic-btn');
-                    btn.style.background = '#ff4444';
-                    btn.innerHTML = '🔴';
-                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                    if (!SpeechRecognition) {
-                        alert('你的浏览器不支持语音输入，请使用Chrome浏览器');
-                        btn.style.background = '#fff';
-                        btn.innerHTML = '🎤';
-                        return;
-                    }
-                    const recognition = new SpeechRecognition();
-                    recognition.lang = 'zh-CN';
-                    recognition.interimResults = false;
-                    recognition.maxAlternatives = 1;
-                    recognition.onresult = function(event) {
-                        const text = event.results[0][0].transcript;
-                        window.parent.location.href = window.parent.location.origin +
-                            window.parent.location.pathname + '?voice_text=' + encodeURIComponent(text);
-                    };
-                    recognition.onerror = function() {
-                        btn.style.background = '#fff';
-                        btn.innerHTML = '🎤';
-                    };
-                    recognition.onend = function() {
-                        btn.style.background = '#fff';
-                        btn.innerHTML = '🎤';
-                    };
-                    recognition.start();
-                }
-                </script>
-                """, height=45)
-            with c_input:
-                question = st.chat_input("输入问题，或点击左侧麦克风语音输入...", label_visibility="visible")
-
-        if question:
+        if question := st.chat_input("输入问题，基于知识库回答..."):
             now = datetime.now().strftime("%H:%M")
             msgs.append({"role": "user", "content": question, "time": now})
             # Auto-name conversation from first question
