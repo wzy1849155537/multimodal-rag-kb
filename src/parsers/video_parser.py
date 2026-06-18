@@ -50,6 +50,30 @@ class VideoParser(BaseParser):
         self.asr_api_base = asr_api_base
         self.asr_api_key = asr_api_key
 
+    def _find_ffmpeg(self) -> str:
+        """Find ffmpeg binary, checking common install locations."""
+        import glob as gb
+        candidates = [
+            "ffmpeg",
+            "ffmpeg.exe",
+        ]
+        # Check winget install path
+        winget_base = Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
+        for pattern in [
+            "Gyan.FFmpeg_*/ffmpeg-*/bin/ffmpeg.exe",
+        ]:
+            for p in sorted(winget_base.glob(pattern), reverse=True):
+                if p.exists():
+                    candidates.insert(0, str(p))
+        # Check Program Files
+        for base in [Path("C:/Program Files"), Path("C:/Program Files (x86)")]:
+            for p in base.glob("ffmpeg*/bin/ffmpeg.exe"):
+                candidates.insert(0, str(p))
+        for c in candidates:
+            if Path(c).exists() or c == "ffmpeg":
+                return c
+        return "ffmpeg"
+
     def parse(self, file_path: Path) -> RawDocument:
         logger.info(f"Parsing video: {file_path.name}")
         doc_id = str(uuid.uuid4())[:8]
@@ -60,11 +84,14 @@ class VideoParser(BaseParser):
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = Path(tmpdir) / f"{doc_id}_audio.mp3"
 
+            ffmpeg_bin = self._find_ffmpeg()
+            ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+
             # Extract audio with ffmpeg
             try:
                 subprocess.run(
                     [
-                        "ffmpeg", "-i", str(file_path),
+                        ffmpeg_bin, "-i", str(file_path),
                         "-vn", "-acodec", "libmp3lame",
                         "-q:a", "5", "-y",
                         str(audio_path),
@@ -77,7 +104,7 @@ class VideoParser(BaseParser):
                 # Get duration
                 result = subprocess.run(
                     [
-                        "ffprobe", "-v", "error",
+                        ffprobe_bin, "-v", "error",
                         "-show_entries", "format=duration",
                         "-of", "default=noprint_wrappers=1:nokey=1",
                         str(file_path),
